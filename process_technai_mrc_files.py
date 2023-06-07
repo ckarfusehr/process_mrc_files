@@ -97,6 +97,8 @@ PIXEL_LENGTH_TO_SCALEBAR_LENGTH_IN_nm_DICT = {
 0.102: 100
 }
 
+SPLIT_OUTPUT_TO_SINGLE_FILES = False;
+
 #### Backend functions ####
 
 def read_magnifications_from_mdoc(mrc_file_path):
@@ -305,12 +307,10 @@ def read_mrc_file_to_array(mrc_file_path):
     :return: tuple of (numpy array, str), the MRC data array and the output TIFF file path
     """
 
-    base_path, extension = os.path.splitext(mrc_file_path)
-    output_tiff_path = base_path + "_processed.tiff"
     with mrcfile.open(mrc_file_path, mode='r', permissive=True) as mrc:
         mrc_data = np.array(mrc.data)
     
-    return mrc_data, output_tiff_path
+    return mrc_data
 
 def multithread_process_single_images(mrc_data_array, pixel_sizes):
     """
@@ -336,12 +336,21 @@ def process_mrc_file_main(mrc_file_path):
     :param mrc_file_path: str, path to the input MRC file
     """
 
-    mrc_data_array, output_tiff_path = read_mrc_file_to_array(mrc_file_path)
+    mrc_data_array = read_mrc_file_to_array(mrc_file_path)
     magnifications = read_magnifications_from_mdoc(mrc_file_path)
     pixel_sizes = map_magnifications_to_pixel_size(magnifications)
     processed_images_arr = multithread_process_single_images(mrc_data_array, pixel_sizes)
 
-    tifffile.imsave(output_tiff_path, processed_images_arr)
+    base_path, extension = os.path.splitext(mrc_file_path)
+
+    if SPLIT_OUTPUT_TO_SINGLE_FILES is False:
+        output_tiff_path = base_path + "_processed.tiff"
+        tifffile.imwrite(output_tiff_path, processed_images_arr);
+    else:
+        output_tiff_path = base_path + "_processed"
+        for i in range(len(processed_images_arr)):
+            tifffile.imwrite(output_tiff_path+'_'+str(i)+'.tiff', processed_images_arr[i]);
+
 
 def start_gui():
     root = tk.Tk()
@@ -401,13 +410,20 @@ def cmd_wrapper():
     # remove the first argument, which is the name of the script itself
     args = sys.argv[1:]
 
-    for mrc_file_path in args:
-        try:
-            print(f"Started processing {mrc_file_path}")
-            process_mrc_file_main(mrc_file_path)
-            print(f"Finished processing {mrc_file_path}")
-        except:
-            print(f"Failed processing {mrc_file_path}, continuing with next .mrc stack in line")           
+    for options in args:
+        if options == '-s':
+            print('-s option is activated. Processed MRC stack files will be saved as individual TIFF images.');
+            global SPLIT_OUTPUT_TO_SINGLE_FILES;
+            SPLIT_OUTPUT_TO_SINGLE_FILES = True;
+            
+        else:
+            mrc_file_path = options;
+            try:
+                print(f"Started processing {mrc_file_path}")
+                process_mrc_file_main(mrc_file_path)
+                print(f"Finished processing {mrc_file_path}")
+            except:
+                print(f"Failed processing {mrc_file_path}, continuing with next .mrc stack in line")           
         
 if __name__ == "__main__":
     args = sys.argv[1:]
