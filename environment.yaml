@@ -1,0 +1,14 @@
+# run conda env create -f environment.yml to create th erequired env.
+
+name: process_technai_env
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.8
+  - numpy
+  - scikit-image
+  - scipy
+  - mrcfile
+  - tifffile
+  - pillow
